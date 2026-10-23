@@ -38,6 +38,7 @@ hex = "=0.4.3"
 
 [dev-dependencies]
 tempfile = "=3.8.1"
+blvm-consensus = { version = ">=0.1, <1" }
 
 # Local monorepo: sibling paths override the version pins above.
 # Strip this section (BTCDecoded/rust-ci/strip-patch-crates-io@main) before publishing.

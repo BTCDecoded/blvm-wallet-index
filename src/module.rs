@@ -476,6 +476,154 @@ mod tests {
         assert!(note["params"][1].is_null());
     }
 
+    #[tokio::test]
+    async fn signet_invalidate_disconnects_the_index() {
+        use blvm_consensus::reorganization::BlockUndoLog;
+        use blvm_node::module::api::events::EventManager;
+        use blvm_node::module::ipc::protocol::ModuleMessage;
+        use blvm_node::node::event_publisher::EventPublisher;
+        use blvm_node::rpc::blockchain::BlockchainRpc;
+        use blvm_node::storage::Storage;
+        use blvm_node::storage::chainstate::ChainParams;
+        use blvm_node::storage::hashing::hash_to_rpc_hex;
+        use blvm_protocol::{BitcoinProtocolEngine, ProtocolVersion};
+        use tokio::sync::mpsc;
+
+        let chain_dir = tempfile::tempdir().expect("chain dir");
+        let storage = Arc::new(Storage::new(chain_dir.path()).expect("storage"));
+        let protocol = Arc::new(BitcoinProtocolEngine::new(ProtocolVersion::Signet).unwrap());
+        let genesis = protocol.get_network_params().genesis_block.header.clone();
+        let mut params = ChainParams::default();
+        params.network = "signet".to_string();
+        storage
+            .chain()
+            .initialize_with_params(&genesis, params)
+            .unwrap();
+        let genesis_hash = storage.chain().get_tip_hash().unwrap().unwrap();
+        storage
+            .blocks()
+            .store_header(&genesis_hash, &genesis)
+            .unwrap();
+
+        let script = vec![0x51];
+        let coinbase = Transaction {
+            version: 2,
+            inputs: vec![TransactionInput {
+                prevout: OutPoint {
+                    hash: [0u8; 32],
+                    index: 0xffff_ffff,
+                },
+                script_sig: Vec::new(),
+                sequence: 0xffff_ffff,
+            }]
+            .into(),
+            outputs: vec![TransactionOutput {
+                value: 50_000,
+                script_pubkey: script.clone(),
+            }]
+            .into(),
+            lock_time: 0,
+        };
+        let block = Block::from_parts(
+            BlockHeader {
+                version: genesis.version,
+                prev_block_hash: genesis_hash,
+                merkle_root: [0u8; 32],
+                timestamp: genesis.timestamp.saturating_add(1),
+                bits: genesis.bits,
+                nonce: genesis.nonce.wrapping_add(1),
+            },
+            Box::from(vec![coinbase]),
+        );
+        let hash = storage.blocks().get_block_hash(&block);
+        storage.blocks().store_block(&block).unwrap();
+        storage.blocks().store_header(&hash, &block.header).unwrap();
+        storage.blocks().store_height(1, &hash).unwrap();
+        storage
+            .blocks()
+            .store_undo_log(&hash, &BlockUndoLog::new())
+            .unwrap();
+        storage.chain().update_tip(&hash, &block.header, 1).unwrap();
+
+        let info = BlockchainRpc::with_dependencies_and_protocol(
+            Arc::clone(&storage),
+            Arc::clone(&protocol),
+        )
+        .get_blockchain_info()
+        .await
+        .unwrap();
+        assert_eq!(info["chain"], "signet");
+
+        let (_dir, module, db) = open_module();
+        index::index_block(module.outputs.as_ref(), &block, 1).unwrap();
+        assert_eq!(
+            index::history(module.outputs.as_ref(), &script)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert_eq!(
+            index::header_tip(module.outputs.as_ref())
+                .unwrap()
+                .unwrap()
+                .0,
+            1
+        );
+        let (status, _, body) =
+            crate::esplora::response(module.outputs.as_ref(), "GET /blocks/tip/height HTTP/1.1");
+        assert_eq!(status, 200);
+        assert_eq!(body, "1");
+
+        let events = Arc::new(EventManager::new());
+        let (sender, mut receiver) = mpsc::channel(8);
+        events
+            .subscribe_module(
+                "blvm-wallet-index_signet".to_string(),
+                vec![EventType::BlockDisconnected, EventType::ChainReorg],
+                sender,
+            )
+            .await
+            .unwrap();
+        BlockchainRpc::with_dependencies(Arc::clone(&storage))
+            .with_event_publisher(Some(Arc::new(EventPublisher::new(events))))
+            .invalidate_block(&json!([hash_to_rpc_hex(&hash)]))
+            .await
+            .unwrap();
+        assert_eq!(storage.chain().get_height().unwrap().unwrap(), 0);
+
+        let ctx = InvocationContext::new(Arc::clone(&db));
+        for _ in 0..2 {
+            let message = timeout(Duration::from_secs(2), receiver.recv())
+                .await
+                .expect("disconnect event")
+                .unwrap();
+            let ModuleMessage::Event(event) = message else {
+                panic!("expected an event");
+            };
+            if event.event_type == EventType::BlockDisconnected {
+                let EventPayload::BlockDisconnected { height, .. } = &event.payload else {
+                    panic!("disconnect payload");
+                };
+                assert_eq!(*height, 1);
+            }
+            module.dispatch_event(event, &ctx).await.unwrap();
+        }
+        assert!(
+            index::history(module.outputs.as_ref(), &script)
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            index::header_tip(module.outputs.as_ref())
+                .unwrap()
+                .is_none()
+        );
+        let (status, _, body) =
+            crate::esplora::response(module.outputs.as_ref(), "GET /blocks/tip/height HTTP/1.1");
+        assert_eq!(status, 404);
+        assert_eq!(body, "no header");
+    }
+
     #[test]
     fn getscripthistory_rejects_a_missing_or_bad_script() {
         let (_dir, module, db) = open_module();
