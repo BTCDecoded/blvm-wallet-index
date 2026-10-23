@@ -1,0 +1,15 @@
+name = "blvm-wallet-index"
+version = "0.1.0"
+description = "Script history index, Electrum, and Esplora address stats. Own database. Rolls back on BlockDisconnected."
+author = "Bitcoin Commons Contributors"
+entry_point = "blvm-wallet-index"
+
+capabilities = [
+    "read_blockchain",
+    "read_utxo",
+    "read_chain_state",
+    "subscribe_events",
+    "read_storage",
+    "write_storage",
+    "register_rpc_endpoint",
+]
