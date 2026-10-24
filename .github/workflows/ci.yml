@@ -291,7 +291,7 @@ jobs:
             fi
           fi
           TAGGED_VERSIONS=$(git tag -l 'v[0-9]*.[0-9]*.[0-9]*' | sed 's/^v//' | sed 's/-unverified$//')
-          USED_VERSIONS=$(printf '%s\n%s' "$TAGGED_VERSIONS" "$PUBLISHED_VERSIONS" | sort -u | grep -v '^$')
+          USED_VERSIONS=$(printf '%s\n%s' "$TAGGED_VERSIONS" "$PUBLISHED_VERSIONS" | sort -u | grep -v '^$' || true)
           SAME_LINE_PATCHES=$(printf '%s\n' "$USED_VERSIONS" | grep -E "^${MAJOR}\\.${MINOR}\\.[0-9]+$" | cut -d. -f3 || true)
           MAX_PATCH=$(printf '%s\n' $SAME_LINE_PATCHES "$CURRENT_PATCH" | grep -E '^[0-9]+$' | sort -n | tail -1)
           [ -n "$MAX_PATCH" ] || MAX_PATCH="$CURRENT_PATCH"
