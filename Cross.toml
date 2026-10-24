@@ -1,0 +1,8 @@
+# Used by `cross build` for aarch64-unknown-linux-gnu (CI matrix).
+# Provides OpenSSL pkg-config for native-tls / reqwest from blvm-node without relying
+# on the runner's cross-arch sysroot alone.
+[target.aarch64-unknown-linux-gnu]
+pre-build = [
+    "dpkg --add-architecture arm64",
+    "apt-get update && apt-get install -y --no-install-recommends libssl-dev:arm64 pkg-config",
+]
