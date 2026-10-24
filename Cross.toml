@@ -1,8 +1,9 @@
-# Used by `cross build` for aarch64-unknown-linux-gnu (CI matrix).
-# Provides OpenSSL pkg-config for native-tls / reqwest from blvm-node without relying
-# on the runner's cross-arch sysroot alone.
 [target.aarch64-unknown-linux-gnu]
+# Use the edge image (Ubuntu 20.04 base) — the default cross image uses
+# Ubuntu 16.04 which ships OpenSSL 1.0.2, but openssl-sys >= 0.9.100 requires 1.1+.
+image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:edge"
 pre-build = [
     "dpkg --add-architecture arm64",
-    "apt-get update && apt-get install -y --no-install-recommends libssl-dev:arm64 pkg-config",
+    "apt-get update",
+    "apt-get install -y libssl-dev:arm64 pkg-config",
 ]
