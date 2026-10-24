@@ -148,8 +148,10 @@ mod tests {
     }
 
     fn block_at(tx: Transaction, height: u64) -> Block {
-        let mut header = BlockHeader::default();
-        header.nonce = height;
+        let header = BlockHeader {
+            nonce: height,
+            ..BlockHeader::default()
+        };
         Block::from_parts(header, Box::from(vec![tx]))
     }
 

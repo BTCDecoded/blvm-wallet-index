@@ -493,8 +493,10 @@ mod tests {
         let storage = Arc::new(Storage::new(chain_dir.path()).expect("storage"));
         let protocol = Arc::new(BitcoinProtocolEngine::new(ProtocolVersion::Signet).unwrap());
         let genesis = protocol.get_network_params().genesis_block.header.clone();
-        let mut params = ChainParams::default();
-        params.network = "signet".to_string();
+        let params = ChainParams {
+            network: "signet".to_string(),
+            ..ChainParams::default()
+        };
         storage
             .chain()
             .initialize_with_params(&genesis, params)

@@ -231,7 +231,7 @@ pub fn rollback_from(tree: &dyn Tree, height: u64) -> Result<(usize, Vec<Hash>)>
         let script_hash = script_hash(&value[8..]);
         tree.remove(&script_key(&script_hash, row_height, &txid, vout))?;
         tree.remove(&prevout_key(&txid, vout))?;
-        tree.remove(&key)?;
+        tree.remove(key)?;
         scripts.push(script_hash);
         removed += 1;
     }

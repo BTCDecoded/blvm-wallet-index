@@ -588,8 +588,10 @@ mod tests {
     }
 
     fn block_at(tx: Transaction, nonce: u64) -> Block {
-        let mut header = BlockHeader::default();
-        header.nonce = nonce;
+        let header = BlockHeader {
+            nonce,
+            ..BlockHeader::default()
+        };
         Block::from_parts(header, Box::from(vec![tx]))
     }
 
