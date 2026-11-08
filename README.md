@@ -4,7 +4,7 @@ Script history for `blvm`. This process keeps its own database. It does not open
 
 Electrum binds when module config `listen` is set, for example `127.0.0.1:50001`. Esplora binds when `esplora` is set, for example `127.0.0.1:3000`. With neither set, the process still indexes blocks and does not open those ports.
 
-The node config pin is `blvm-wallet-index = "0.1.*"`.
+The default node pin is `blvm-index = "0.1.*"`. This crate still loads when that name is pinned explicitly.
 
 ## Build
 

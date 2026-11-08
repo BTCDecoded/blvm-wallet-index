@@ -14,10 +14,10 @@ mod module;
 
 pub use config::WalletIndexConfig;
 pub use electrum::{HeaderHub, StatusHub, reply_line, serve, serve_listener};
-pub use esplora::serve as serve_esplora;
+pub use esplora::{response as esplora_response, serve as serve_esplora};
 pub use index::{
-    HistoryTx, IndexedOutput, MempoolTx, ScriptActivity, TREE_NAME, clear_mempool, history,
-    index_block, index_mempool, mempool_for, remove_mempool, rollback_from, script_activity,
-    script_hash, script_hash_history,
+    HistoryTx, IndexedOutput, MempoolTx, ScriptActivity, TREE_NAME, clear_mempool, header_tip,
+    header_wire, history, index_block, index_mempool, mempool_for, remove_mempool, rollback_from,
+    script_activity, script_hash, script_hash_history,
 };
 pub use module::WalletIndexModule;
